@@ -83,10 +83,13 @@ def create_vulnerability_project(name: str, description: str, requirements: Uplo
 def get_projects() -> dict:
     """
     Method to retrieve all projects with vulnerabilities.
+    Scenarios:
+    1. No Projects created
+    2. Projects available but none with vulnerabilities
+    3. Projects available with some having vulnerabilities
 
     Returns:
-        dict: All (vulnerable) projects with their details or
-        a message if no projects are found.
+        dict: Response dict.
     """
     logger.info("START: Retrieving all vulnerability projects.")
 
@@ -97,7 +100,8 @@ def get_projects() -> dict:
                                         "No projects found. Create a project first.")
 
     else: #There are projects
-        logger.info(f"Total projects found: {len(vulners_service.projects)}")
+        projects_cnt = len(vulners_service.projects)
+        logger.info(f"Total projects found: {projects_cnt}")
         logger.debug(f"Existing projects data: {vulners_service.projects}")
         filtered_projects = {}
 
@@ -111,16 +115,18 @@ def get_projects() -> dict:
             if has_vulnerabilities:
                 filtered_projects[project_id] = project_data
 
-        # If no projects with vulnerabilities are found
         if filtered_projects:
+            msg = f"Project count: {projects_cnt}. {len(filtered_projects)} project(s) with vulnerabilities found."
+
             response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
-                        f"{len(filtered_projects)} projects with vulnerabilities found.",
-                        data=filtered_projects)
+                                                        msg, data=filtered_projects)
 
         else:
-            logger.info("No projects with vulnerabilities found.")
-            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
-                                        "No projects with vulnerabilities found.")
+            # There are projects but none have vulnerabilities
+            msg = f"Project count: {projects_cnt}. No projects with vulnerabilities found."
+            logger.info(f"{msg}")
+
+            response = vulners_service.handle_response(CONST.SUCCESS_STATUS, msg)
 
     logger.info("END: Retrieving all vulnerability projects.")
     return response
