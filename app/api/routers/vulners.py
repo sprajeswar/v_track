@@ -78,3 +78,49 @@ def create_vulnerability_project(name: str, description: str, requirements: Uplo
     logger.info(f"END: Creating vulnerability project: {name}")
 
     return response
+
+@router.get("/projects")
+def get_projects() -> dict:
+    """
+    Method to retrieve all projects with vulnerabilities.
+
+    Returns:
+        dict: All (vulnerable) projects with their details or
+        a message if no projects are found.
+    """
+    logger.info("START: Retrieving all vulnerability projects.")
+
+    # Check if there are no projects
+    if not vulners_service.projects:
+        logger.info("No projects found.")
+        response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                        "No projects found. Create a project first.")
+
+    else: #There are projects
+        logger.info(f"Total projects found: {len(vulners_service.projects)}")
+        logger.debug(f"Existing projects data: {vulners_service.projects}")
+        filtered_projects = {}
+
+        for project_id, project_data in vulners_service.projects.items():
+            # Check if any dependency has vulnerabilities
+            dependencies = project_data.get("dependencies", {})
+            has_vulnerabilities = any(
+                "vulnerabilities found" in status.lower() for status in dependencies.values()
+            )
+
+            if has_vulnerabilities:
+                filtered_projects[project_id] = project_data
+
+        # If no projects with vulnerabilities are found
+        if filtered_projects:
+            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                        f"{len(filtered_projects)} projects with vulnerabilities found.",
+                        data=filtered_projects)
+
+        else:
+            logger.info("No projects with vulnerabilities found.")
+            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                        "No projects with vulnerabilities found.")
+
+    logger.info("END: Retrieving all vulnerability projects.")
+    return response
