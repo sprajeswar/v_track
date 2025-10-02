@@ -6,7 +6,6 @@ from app.api.routers import vulners
 from app.logger import setup_logger
 
 import datetime as datetime
-import time
 
 logger = setup_logger(__name__)
 

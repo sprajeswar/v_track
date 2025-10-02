@@ -28,8 +28,13 @@ def create_vulnerability_project(name: str, description: str):
     Returns:
         dict: Response from the Vulners service.
     """
-    vulners_service_instance = vulners_service.VulnersService()
-    response = vulners_service_instance.get_vulnerability()
+    logger.info(f"START: Creating vulnerability project: {name}")
 
-    logger.info(response)
+    vulners_service_instance = vulners_service.VulnersService()
+    response = vulners_service_instance.get_vulnerability(project_name = name,
+                                                          project_description = description)
+
+    logger.debug(response)
+    logger.info(f"END: Creating vulnerability project: {name}")
+
     return response
