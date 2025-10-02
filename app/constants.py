@@ -10,3 +10,6 @@ class Constants():
     API_VERSION = "v1/"
     QUERY_PATH = "query/"
     QUERY_BATCH_PATH = "querybatch/"
+
+    SUCCESS_STATUS = "success"
+    ERROR_STATUS = "error"

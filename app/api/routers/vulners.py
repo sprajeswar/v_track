@@ -1,15 +1,26 @@
 """Endpoints for Vulnerabilities."""
 
-from fastapi import APIRouter
-from app.services import vulners_service
+from fastapi import APIRouter, UploadFile, HTTPException
+from http import HTTPStatus
+
+from app.services.vulners_service import VulnersService
 from app.logger import setup_logger
+from app.constants import Constants as CONST
+from app.config import Config
+
+import datetime as datetime
 
 logger = setup_logger(__name__)
 
 router = APIRouter()
 
-@router.get("/vulners/health")
-def check_vulners_health():
+# Create a shared instance of VulnersService
+# This is to ensure that the in-memory 'projects' dictionary
+# is shared across all requests.
+vulners_service = VulnersService()
+
+@router.get("/health")
+def check_health():
     """
     Health check endpoint for the Vulners router.
     This verifies if the Vulners router is working.
@@ -17,22 +28,51 @@ def check_vulners_health():
     return {"status": "OK. Vulners endpoint is up and running."}
 
 @router.post("/project")
-def create_vulnerability_project(name: str, description: str):
+def create_vulnerability_project(name: str, description: str, requirements: UploadFile):
     """
     Create a new vulnerability project.
+    requirements file: each line format like below
+        {"name": "Django", "version": "3.0.0", "ecosystem": "PyPI"}
 
     Args:
         name (str): Name of the project.
         description (str): Description of the project.
+        requirements (UploadFile): Requirements file containing package details.
 
     Returns:
         dict: Response from the Vulners service.
     """
     logger.info(f"START: Creating vulnerability project: {name}")
 
-    vulners_service_instance = vulners_service.VulnersService()
-    response = vulners_service_instance.get_vulnerability(project_name = name,
-                                                          project_description = description)
+    start_time = datetime.datetime.now()
+    try:
+        if name in vulners_service.projects.keys():
+            if not Config.REDO_FOR_SAME_PROJECT:
+                response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                                    f"Project with name '{name}' already exists.")
+
+            else:
+                logger.warning(f"Flag in Config is set to {Config.REDO_FOR_SAME_PROJECT}.")
+                logger.warning(f"Project '{name}' already exists  and overwiriting.")
+                response = vulners_service.create_project(project_name = name,
+                                                project_description = description,
+                                                requirements_file = requirements)
+
+        else:
+            response = vulners_service.create_project(project_name = name,
+                                                project_description = description,
+                                                requirements_file = requirements)
+
+    except Exception as ex:
+        msg  = f"Error creating project '{name}'"
+        logger.error(f"{msg}: {str(ex)}")
+        response = vulners_service.handle_response(CONST.ERROR_STATUS,
+                                                f"{msg}. Check logs for details.")
+
+    finally:
+        end_time = datetime.datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        logger.info(f"Project '{name}' created in {duration} seconds.")
 
     logger.debug(response)
     logger.info(f"END: Creating vulnerability project: {name}")
