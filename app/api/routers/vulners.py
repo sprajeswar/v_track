@@ -130,3 +130,55 @@ def get_projects() -> dict:
 
     logger.info("END: Retrieving all vulnerability projects.")
     return response
+
+@router.get("/projects/{project_name}")
+def get_project_vulnerabilities(project_name: str) -> dict:
+    """
+    End point to fetch vulnerabilities for a specific project.
+    Scenarios:
+        1. Projects are not created
+        2. Given Project not found
+        3. Given Project found but no vulnerabilities
+        4. Given Project found with vulnerabilities
+
+    Args:
+        project_name (str): The name of the project.
+
+    Returns:
+        dict: Vulnerabilities for the project or a message if none are found.
+    """
+    logger.info(f"START: Fetching vulnerabilities for project: {project_name}")
+
+    # Check if the project exists
+    if not vulners_service.projects:
+        logger.info("No projects found.")
+        return vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                        "No projects found. Create a project first.")
+
+    project_data = vulners_service.projects.get(project_name)
+    if not project_data:
+        logger.info(f"Project '{project_name}' not found.")
+        response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                                f"Project '{project_name}' not found.")
+
+    else:
+        # Check if the project has any vulnerabilities
+        dependencies = project_data.get("dependencies", {})
+        vulnerabilities = {
+                dependency: status
+                    for dependency, status in dependencies.items()
+                        if "vulnerabilities found" in status.lower()
+                }
+
+        if not vulnerabilities:
+            logger.info(f"No vulnerabilities found for project: {project_name}")
+            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                f"No vulnerabilities found for the project '{project_name}'.")
+
+        else:
+            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                                f"Vulnerabilities found for the project '{project_name}'.",
+                                data={"vulnerabilities": vulnerabilities})
+
+    logger.info(f"END: Fetching vulnerabilities for project: {project_name}")
+    return response
