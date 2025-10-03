@@ -47,7 +47,8 @@ class VulnersService():
         qry_payload, package_names = self._validate_and_process_file(requirements_file)
         start_time = datetime.datetime.now()
 
-        response = self.call_api(json.dumps(qry_payload))
+        url = f"{CONST.SERVER}{CONST.API_VERSION}{CONST.QUERY_BATCH_PATH}"
+        response = self.call_api(url, json.dumps(qry_payload))
 
         end_time = datetime.datetime.now()
         duration = (end_time - start_time).total_seconds()
@@ -69,7 +70,7 @@ class VulnersService():
             package_names (list): List of package names queried.
         Returns:
             dict: The processed result
-        """
+        """ 
         logger.info("START: Processing API response.")
         if response.status_code == HTTPStatus.OK:
             data = response.json()
@@ -103,21 +104,21 @@ class VulnersService():
 
     @staticmethod
     @lru_cache(maxsize=Config.LRU_CACHE_SIZE, typed=Config.LRU_CACHE_TYPED)
-    def call_api(payload: str) -> dict:
+    def call_api(url: str, payload: str) -> dict:
         """
         Call the Vulners API with the given payload.
-        Payload is the KEY for caching.
 
         Args:
+            url (str): End point for API
             payload (str): The JSON payload as a string.
 
         Returns:
             dict: The API response.
         """
-        logger.info("Calling Vulners API.")
         logger.info(VulnersService.call_api.cache_info())
 
-        url = f"{CONST.SERVER}{CONST.API_VERSION}{CONST.QUERY_BATCH_PATH}"
+        logger.debug(url)
+        logger.debug(payload)
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, data=payload, headers=headers)
 
@@ -222,6 +223,83 @@ class VulnersService():
         logger.debug(f"Payload: {payload}")
         return payload, package_names
 
+    def pull_dependencies(self)-> dict:
+        """Pull dependencies with vulnerabilities across all projects.
+
+        Returns:
+            dict: A dictionary with dependencies as keys
+                and list of projects with vulnerability counts as values.
+        """
+        logger.info("START: Pulling dependencies with vulnerabilities across all projects.")
+        try:
+            result = {}
+            for project, details in self.projects.items():
+                for dep, status in details["dependencies"].items():
+                    vuln_cnt = "".join(filter(str.isdigit, status)) or "0"
+                    if int(vuln_cnt) > 0:
+                        key = dep.lower()
+                        if key not in result:
+                            result[key] = []
+                        result[key].append(f"{project}: {vuln_cnt}")
+            final_result = {key: ", ".join(val) for key, val in result.items()}
+
+            if final_result:
+                logger.info(f"Final dependencies with vulnerabilities: {final_result}")
+                response = handle_response(CONST.SUCCESS_STATUS,
+                            "Fetched dependencies with vulnerabilities across all projects.",
+                            data={"dependencies": final_result})
+            else:
+                msg = "No dependencies with vulnerabilities found across projects."
+                logger.info(f"{msg}")
+                response = handle_response(CONST.SUCCESS_STATUS, msg)
+
+        except Exception as ex:
+            logger.error(f"Error while pulling dependencies: {str(ex)}")
+            response = handle_response(CONST.ERROR_STATUS,
+                            "Failed to pull dependencies with vulnerabilities.")
+
+        logger.info("END: Pulling dependencies with vulnerabilities across all projects.")
+        return response
+
+    def get_package_vulnerabilities(self, pkg_payload: dict) -> dict:
+        """Fetch vulnerability details from Vulners API for
+        a given package as part of payload.
+
+        Args:
+            pkg_payload (dict): Payload for the package.
+
+        Returns:
+            dict: Final response dict.
+        """
+        logger.info("START: Fetching vulnerability details from Vulners API for a package.")
+        start_time = datetime.datetime.now()
+
+        url = f"{CONST.SERVER}{CONST.API_VERSION}{CONST.QUERY_PATH}"
+        response = self.call_api(url, json.dumps(pkg_payload))
+
+        end_time = datetime.datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        logger.info(f"Vulners API response received in {duration} seconds.")
+
+        if response.status_code == HTTPStatus.OK:
+            data = response.json()
+            logger.debug(f"Vulners API response: {data}")
+
+            if data:
+                msg = "Vulnerability details fetched successfully."
+
+            else:
+                msg = "Vulnerability details not available for the given package."
+
+            response = handle_response(CONST.SUCCESS_STATUS, msg, data = data)
+        else:
+            response = handle_response(CONST.ERROR_STATUS,
+                                        "Failed to fetch vulnerability details.")
+
+        logger.info("END: Fetching vulnerability details from Vulners API for a package.")
+        return response
+
+
 if __name__ == "__main__":
     # Lets run locally for service validation
     vulners_service = VulnersService()
@@ -233,5 +311,15 @@ if __name__ == "__main__":
                 {"package": {"name": "Django", "ecosystem": "PyPI"}, "version": "3.2.0"}
             ]
         })
-        response = vulners_service.call_api(payload)
+        url = f"{CONST.SERVER}{CONST.API_VERSION}{CONST.QUERY_BATCH_PATH}"
+        response = vulners_service.call_api(url, payload)
         logger.info(response)
+
+    ## Uncomment the below for running with LRU cache validation with some other package
+    # for cnt in range(3):
+    #     logger.info(f"Call count: {cnt+1}")
+    #     payload = json.dumps({
+    #         "queries": [
+    #             {"package": {"name": "requests", "ecosystem": "PyPI"}, "version": "2.25.1"}
+    #         ]
+    #     })

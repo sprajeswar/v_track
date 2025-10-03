@@ -189,3 +189,64 @@ def get_project_vulnerabilities(project_name: str) -> dict:
 
     logger.info(f"END: Fetching vulnerabilities for project: {project_name}")
     return response
+
+@router.get("/all_dependencies")
+def get_all_dependencies() -> dict:
+    """
+    Endpoint to fetch all dependencies across all projects created.
+    Scenarios:
+        1. No Projects created
+        2. Projects available but none with dependencies
+        3. Projects available with some having dependencies
+
+    Returns:
+        dict: Response dict.
+    """
+    logger.info("START: Retrieving all dependencies across projects.")
+
+    # Check if there are no projects
+    if not vulners_service.projects:
+        logger.info("No projects found.")
+        response = handle_response(CONST.SUCCESS_STATUS,
+                                        "No projects found. Create a project first.")
+
+    else:
+        response = vulners_service.pull_dependencies()
+
+    logger.info("END: Retrieving all dependencies across projects.")
+    return response
+
+@router.get("/dependency")
+def get_package_dependencies(package_name: str, package_version: str, ecosystem: str = "PyPI") -> dict:
+    """
+    Endpoint to fetch dependency for a given package.
+    Payload format:{
+            "version": "2.3.3",
+            "package": {
+                "name": "pandas",
+                "ecosystem": "PyPI"
+            }
+         }
+
+    Returns:
+        dict: Response dict.
+    """
+    logger.info("START: Retrieving all dependencies with vulnerabilities across projects.")
+
+    if package_name is None or package_version is None:
+        logger.error("Package name and version are required.")
+        response = handle_response(CONST.ERROR_STATUS,
+                                        "Package name and version are required.")
+    else:
+        payload = {
+            "version": package_version,
+            "package": {
+                "name": package_name,
+                "ecosystem": ecosystem
+            }
+        }
+        logger.debug(f"Payload for single dependency: {payload}")
+        response = vulners_service.get_package_vulnerabilities(payload)
+
+    logger.info("END: Retrieving all dependencies with vulnerabilities across projects.")
+    return response
