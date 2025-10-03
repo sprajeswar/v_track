@@ -11,5 +11,5 @@ class Constants():
     QUERY_PATH = "query/"
     QUERY_BATCH_PATH = "querybatch/"
 
-    SUCCESS_STATUS = "success"
-    ERROR_STATUS = "error"
+    SUCCESS_STATUS = "Success"
+    ERROR_STATUS = "Error"

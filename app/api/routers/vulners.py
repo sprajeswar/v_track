@@ -1,12 +1,12 @@
 """Endpoints for Vulnerabilities."""
 
 from fastapi import APIRouter, UploadFile, HTTPException
-from http import HTTPStatus
 
 from app.services.vulners_service import VulnersService
 from app.logger import setup_logger
 from app.constants import Constants as CONST
 from app.config import Config
+from app.utils.response_utils import handle_response
 
 import datetime as datetime
 
@@ -25,7 +25,11 @@ def check_health():
     Health check endpoint for the Vulners router.
     This verifies if the Vulners router is working.
     """
-    return {"status": "OK. Vulners endpoint is up and running."}
+    return handle_response(
+        status=CONST.SUCCESS_STATUS,
+        message="Router Vulnerability end points are good.",
+        data={}
+    )
 
 @router.post("/project")
 def create_vulnerability_project(name: str, description: str, requirements: UploadFile):
@@ -48,7 +52,7 @@ def create_vulnerability_project(name: str, description: str, requirements: Uplo
     try:
         if name in vulners_service.projects.keys():
             if not Config.REDO_FOR_SAME_PROJECT:
-                response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+                response = handle_response(CONST.SUCCESS_STATUS,
                                                     f"Project with name '{name}' already exists.")
 
             else:
@@ -65,12 +69,12 @@ def create_vulnerability_project(name: str, description: str, requirements: Uplo
 
     except HTTPException as http_ex:
         logger.info(f"HTTPException occurred: {http_ex.detail}")
-        response = vulners_service.handle_response(CONST.ERROR_STATUS, http_ex.detail)
+        response = handle_response(CONST.ERROR_STATUS, http_ex.detail)
 
     except Exception as ex:
         # Handle generic exceptions
         logger.error(f"Unexpected error occurred: {str(ex)}")
-        response = vulners_service.handle_response(CONST.ERROR_STATUS,
+        response = handle_response(CONST.ERROR_STATUS,
                                                 f"An unexpected error occurred: {str(ex)}")
     finally:
         end_time = datetime.datetime.now()
@@ -99,7 +103,7 @@ def get_projects() -> dict:
     # Check if there are no projects
     if not vulners_service.projects:
         logger.info("No projects found.")
-        response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+        response = handle_response(CONST.SUCCESS_STATUS,
                                         "No projects found. Create a project first.")
 
     else: #There are projects
@@ -121,7 +125,7 @@ def get_projects() -> dict:
         if filtered_projects:
             msg = f"Project count: {projects_cnt}. {len(filtered_projects)} project(s) with vulnerabilities found."
 
-            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+            response = handle_response(CONST.SUCCESS_STATUS,
                                                         msg, data=filtered_projects)
 
         else:
@@ -129,7 +133,7 @@ def get_projects() -> dict:
             msg = f"Project count: {projects_cnt}. No projects with vulnerabilities found."
             logger.info(f"{msg}")
 
-            response = vulners_service.handle_response(CONST.SUCCESS_STATUS, msg)
+            response = handle_response(CONST.SUCCESS_STATUS, msg)
 
     logger.info("END: Retrieving all vulnerability projects.")
     return response
@@ -155,13 +159,13 @@ def get_project_vulnerabilities(project_name: str) -> dict:
     # Check if the project exists
     if not vulners_service.projects:
         logger.info("No projects found.")
-        return vulners_service.handle_response(CONST.SUCCESS_STATUS,
+        return handle_response(CONST.SUCCESS_STATUS,
                                         "No projects found. Create a project first.")
 
     project_data = vulners_service.projects.get(project_name)
     if not project_data:
         logger.info(f"Project '{project_name}' not found.")
-        response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+        response = handle_response(CONST.SUCCESS_STATUS,
                                                 f"Project '{project_name}' not found.")
 
     else:
@@ -175,11 +179,11 @@ def get_project_vulnerabilities(project_name: str) -> dict:
 
         if not vulnerabilities:
             logger.info(f"No vulnerabilities found for project: {project_name}")
-            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+            response = handle_response(CONST.SUCCESS_STATUS,
                                 f"No vulnerabilities found for the project '{project_name}'.")
 
         else:
-            response = vulners_service.handle_response(CONST.SUCCESS_STATUS,
+            response = handle_response(CONST.SUCCESS_STATUS,
                                 f"Vulnerabilities found for the project '{project_name}'.",
                                 data={"vulnerabilities": vulnerabilities})
 

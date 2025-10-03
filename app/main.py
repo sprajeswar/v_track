@@ -4,6 +4,8 @@ from fastapi import FastAPI
 
 from app.api.routers import vulners
 from app.logger import setup_logger
+from app.constants import Constants as CONST
+from app.utils.response_utils import handle_response
 
 import datetime as datetime
 
@@ -16,7 +18,11 @@ app.include_router(vulners.router)
 def health():
     """Health check endpoint."""
     logger.info("Top level Health check endpoint called.")
-    return {"status": "OK. Server is up and running."}
+    return handle_response(
+        status=CONST.SUCCESS_STATUS,
+        message="Service is up and running.",
+        data={}
+    )
 
 
 
