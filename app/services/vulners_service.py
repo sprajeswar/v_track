@@ -2,6 +2,7 @@
 
 from fastapi import HTTPException, UploadFile
 from http import HTTPStatus
+from functools import lru_cache
 
 from app.constants import Constants as CONST
 from app.logger import setup_logger
@@ -28,12 +29,10 @@ class VulnersService():
         """To fetch vulnerability details from Vulners API for
         a given package as part of payload.
         Ex:{
-            "version": "2.3.3",
-            "package": {
-                "name": "pandas",
-                "ecosystem": "PyPI"
-            }
-         }
+            "queries": [
+                {"package": {"name": "Django", "ecosystem": "PyPI"}, "version": "3.2.0"}
+            ]
+        }
 
         args:
             payload (dict): The payload containing package details.
@@ -48,10 +47,30 @@ class VulnersService():
         qry_payload, package_names = self._validate_and_process_file(requirements_file)
         start_time = datetime.datetime.now()
 
-        url = f"{self.base_url}{CONST.QUERY_BATCH_PATH}"
+        response = self.call_api(json.dumps(qry_payload))
 
-        response = requests.post(url, json=qry_payload)
+        end_time = datetime.datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        logger.info(f"Vulners API response received in {duration} seconds.")
 
+        result = self._process_api_response(response, project_name, project_description, package_names)
+
+        logger.info(f"RESULT: {result}")
+        logger.info("END: Fetching vulnerability details from Vulners API.")
+        return result
+
+    def _process_api_response(self, response: requests.Response, project_name: str,
+                               project_description: str, package_names: list) -> dict:
+        """Process the API response and store the results in the in-memory 'projects' dictionary.
+        Args:
+            response (requests.Response): The response from the Vulners API.
+            project_name (str): Name of the project.
+            project_description (str): Description of the project.
+            package_names (list): List of package names queried.
+        Returns:
+            dict: The processed result
+        """
+        logger.info("START: Processing API response.")
         if response.status_code == HTTPStatus.OK:
             data = response.json()
             logger.debug(f"Vulners API response: {data}")
@@ -79,13 +98,30 @@ class VulnersService():
             result =  handle_response(CONST.ERROR_STATUS,
                                         f"Failed to fetch data for {project_name}")
 
-        end_time = datetime.datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        logger.info(f"Vulners API response received in {duration} seconds.")
-
-        logger.info(f"RESULT: {result}")
-        logger.info("END: Fetching vulnerability details from Vulners API.")
+        logger.info("END: Processing API response.")
         return result
+
+    @staticmethod
+    @lru_cache(maxsize=Config.LRU_CACHE_SIZE, typed=Config.LRU_CACHE_TYPED)
+    def call_api(payload: str) -> dict:
+        """
+        Call the Vulners API with the given payload.
+        Payload is the KEY for caching.
+
+        Args:
+            payload (str): The JSON payload as a string.
+
+        Returns:
+            dict: The API response.
+        """
+        logger.info("Calling Vulners API.")
+        logger.info(VulnersService.call_api.cache_info())
+
+        url = f"{CONST.SERVER}{CONST.API_VERSION}{CONST.QUERY_BATCH_PATH}"
+        headers = {"Content-Type": "application/json"}
+        response = requests.post(url, data=payload, headers=headers)
+
+        return response
 
     @staticmethod
     def _read_file(req_file: UploadFile) -> str:
@@ -183,5 +219,19 @@ class VulnersService():
 
         logger.debug(f"Processed {len(payload['queries'])} packages from the uploaded file.")
         logger.debug(f"Packages: {package_names}")
+        logger.debug(f"Payload: {payload}")
         return payload, package_names
 
+if __name__ == "__main__":
+    # Lets run locally for service validation
+    vulners_service = VulnersService()
+
+    for cnt in range(3):
+        logger.info(f"Call count: {cnt+1}")
+        payload = json.dumps({
+            "queries": [
+                {"package": {"name": "Django", "ecosystem": "PyPI"}, "version": "3.2.0"}
+            ]
+        })
+        response = vulners_service.call_api(payload)
+        logger.info(response)

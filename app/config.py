@@ -26,3 +26,7 @@ class Config:
     # Set this flag to True to allow re-creation of projects
     # with the same name. This will overwrite the existing
     REDO_FOR_SAME_PROJECT: bool = False
+
+    #LRU Cache size for API responses
+    LRU_CACHE_SIZE: int = 16
+    LRU_CACHE_TYPED: bool = False

@@ -15,6 +15,11 @@ def setup_logger(name: str) -> logging.Logger:
 
     formatter = logging.Formatter(Config.LOG_FORMAT)
 
+    # Console level handlers
+    c_handler = logging.StreamHandler()
+    c_handler.setFormatter(formatter)
+    c_handler.setLevel(logging.INFO)
+
     #File level handler
     f_handler = RotatingFileHandler(Config.LOG_FILE_PATH, maxBytes=Config.LOG_MAX_FILE_SIZE,
                                     backupCount=Config.LOG_BACKUP_COUNT)
@@ -23,6 +28,7 @@ def setup_logger(name: str) -> logging.Logger:
 
     # Add handlers to the logger
     if not logger.handlers:
+        logger.addHandler(c_handler)
         logger.addHandler(f_handler)
 
     return logger
