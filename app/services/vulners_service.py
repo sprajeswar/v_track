@@ -54,6 +54,7 @@ class VulnersService():
 
         if response.status_code == HTTPStatus.OK:
             data = response.json()
+            logger.debug(f"Vulners API response: {data}")
             vulnerability_mapping = {}
             for dependency, result in zip(package_names, data["results"]):
                 vulns = result.get("vulns", [])
@@ -81,7 +82,7 @@ class VulnersService():
         end_time = datetime.datetime.now()
         duration = (end_time - start_time).total_seconds()
         logger.info(f"Vulners API response received in {duration} seconds.")
-
+        logger.info(f"RESULT: {result}")
         logger.info("END: Fetching vulnerability details from Vulners API.")
         return result
 
@@ -129,8 +130,9 @@ class VulnersService():
             except json.JSONDecodeError:
                 raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
                                     detail=f"Invalid JSON format: {line}")
-            except ValueError as e:
-                raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail=str(e))
+            except ValueError as vex:
+                raise HTTPException(status_code=HTTPStatus.BAD_REQUEST,
+                                    detail=f"Invalid value found: {str(vex)}")
 
         logger.debug(f"Processed {len(packages_payload)} packages from the uploaded file.")
         logger.debug(f"Packages: {packages_names}")

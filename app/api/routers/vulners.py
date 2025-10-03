@@ -63,12 +63,15 @@ def create_vulnerability_project(name: str, description: str, requirements: Uplo
                                                 project_description = description,
                                                 requirements_file = requirements)
 
-    except Exception as ex:
-        msg  = f"Error creating project '{name}'"
-        logger.error(f"{msg}: {str(ex)}")
-        response = vulners_service.handle_response(CONST.ERROR_STATUS,
-                                                f"{msg}. Check logs for details.")
+    except HTTPException as http_ex:
+        logger.info(f"HTTPException occurred: {http_ex.detail}")
+        response = vulners_service.handle_response(CONST.ERROR_STATUS, http_ex.detail)
 
+    except Exception as ex:
+        # Handle generic exceptions
+        logger.error(f"Unexpected error occurred: {str(ex)}")
+        response = vulners_service.handle_response(CONST.ERROR_STATUS,
+                                                f"An unexpected error occurred: {str(ex)}")
     finally:
         end_time = datetime.datetime.now()
         duration = (end_time - start_time).total_seconds()
