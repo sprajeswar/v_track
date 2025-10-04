@@ -102,42 +102,7 @@ def get_projects() -> dict:
         dict: Response dict.
     """
     logger.info("START: Retrieving all vulnerability projects.")
-
-    # Check if there are no projects
-    if not vulners_service.projects:
-        logger.info("No projects found.")
-        response = handle_response(CONST.SUCCESS_STATUS,
-                                        "No projects found. Create a project first.")
-
-    else: #There are projects
-        projects_cnt = len(vulners_service.projects)
-        logger.info(f"Total projects found: {projects_cnt}")
-        logger.debug(f"Existing projects data: {vulners_service.projects}")
-        filtered_projects = {}
-
-        for project_id, project_data in vulners_service.projects.items():
-            # Check if any dependency has vulnerabilities
-            dependencies = project_data.get("dependencies", {})
-            has_vulnerabilities = any(
-                "vulnerabilities found" in status.lower() for status in dependencies.values()
-            )
-
-            if has_vulnerabilities:
-                filtered_projects[project_id] = project_data
-
-        if filtered_projects:
-            msg = f"Project count: {projects_cnt}. {len(filtered_projects)} project(s) with vulnerabilities found."
-
-            response = handle_response(CONST.SUCCESS_STATUS,
-                                                        msg, data=filtered_projects)
-
-        else:
-            # There are projects but none have vulnerabilities
-            msg = f"Project count: {projects_cnt}. No projects with vulnerabilities found."
-            logger.info(f"{msg}")
-
-            response = handle_response(CONST.SUCCESS_STATUS, msg)
-
+    response = vulners_service.get_projects()
     logger.info("END: Retrieving all vulnerability projects.")
     return response
 
@@ -159,6 +124,10 @@ def get_project_vulnerabilities(project_name: str) -> dict:
     """
     logger.info(f"START: Fetching vulnerabilities for project: {project_name}")
 
+    if not project_name  or not project_name.strip():
+        logger.error("Package name is missing and required.")
+        return handle_response(CONST.ERROR_STATUS,
+                                        "Package name is required.")
     # Check if the project exists
     if not vulners_service.projects:
         logger.info("No projects found.")
@@ -166,31 +135,17 @@ def get_project_vulnerabilities(project_name: str) -> dict:
                                         "No projects found. Create a project first.")
 
     project_data = vulners_service.projects.get(project_name)
+
     if not project_data:
         logger.info(f"Project '{project_name}' not found.")
         response = handle_response(CONST.SUCCESS_STATUS,
                                                 f"Project '{project_name}' not found.")
 
     else:
-        # Check if the project has any vulnerabilities
         dependencies = project_data.get("dependencies", {})
-        vulnerabilities = {
-                dependency: status
-                    for dependency, status in dependencies.items()
-                        if "vulnerabilities found" in status.lower()
-                }
-
-        if not vulnerabilities:
-            logger.info(f"No vulnerabilities found for project: {project_name}")
-            response = handle_response(CONST.SUCCESS_STATUS,
-                                f"No vulnerabilities found for the project '{project_name}'.")
-
-        else:
-            response = handle_response(CONST.SUCCESS_STATUS,
+        response = handle_response(CONST.SUCCESS_STATUS,
                                 f"Vulnerabilities found for the project '{project_name}'.",
-                                data={"vulnerabilities": vulnerabilities})
-
-    logger.info(f"END: Fetching vulnerabilities for project: {project_name}")
+                                data={project_name: dependencies})
     return response
 
 @router.get("/all_dependencies")

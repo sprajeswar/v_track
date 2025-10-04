@@ -281,24 +281,79 @@ class VulnersService():
         duration = (end_time - start_time).total_seconds()
         logger.info(f"Vulners API response received in {duration} seconds.")
 
-        if response.status_code == HTTPStatus.OK:
-            data = response.json()
-            logger.debug(f"Vulners API response: {data}")
+        project_name = pkg_payload["package"]["name"]
+        version = pkg_payload["version"]
+        vulns_list = response.json().get("vulns", [])
+        simplified_vulns: dict = {}
 
-            if data:
-                msg = "Vulnerability details fetched successfully."
+        # Unsure of what to pull!!!
+        for vuln in vulns_list or []:
+            if not isinstance(vuln, dict):
+                continue
 
-            else:
-                msg = "Vulnerability details not available for the given package."
+            ## There are some with mismatched pattern!
+            simplified_vulns[vuln.get("id")] = {
+                "summary": vuln.get("summary") or "N/A",
+                "details": vuln.get("details") or "N/A"
+            }
 
-            response = handle_response(CONST.SUCCESS_STATUS, msg, data = data)
-        else:
-            response = handle_response(CONST.ERROR_STATUS,
-                                        "Failed to fetch vulnerability details.")
+        # This is for final response and to make sure of always return a valid dictionary
+        safe_data = {
+            project_name: {
+                "version": version,
+                "vulnerabilities": simplified_vulns
+            }
+        }
 
+        status = CONST.SUCCESS_STATUS if simplified_vulns else CONST.ERROR_STATUS
+        msg = (f"'{project_name}' dependencies with vulnerabilities pulled successfully."
+                    if simplified_vulns else
+                            f"Failed to pull dependencies with vulnerabilities for '{project_name}'.")
         logger.info("END: Fetching vulnerability details from Vulners API for a package.")
-        return response
+        return handle_response(status, msg, data=safe_data)
 
+    def get_projects(self) -> dict:
+        """Methos to return all the project created
+            in the required format
+
+        Returns:
+            dict: Final response dict.
+        """
+        # Check if there are no projects
+        if not self.projects:
+            logger.info("No projects found.")
+            response = handle_response(CONST.SUCCESS_STATUS,
+                                            "No projects found. Create a project first.")
+
+        else: #There are projects
+            projects_cnt = len(self.projects)
+            logger.info(f"Total projects found: {projects_cnt}")
+            logger.debug(f"Existing projects data: {self.projects}")
+            filtered_projects = {}
+
+            vulnr_cntr = 0
+            for project_name, project_data in self.projects.items():
+                # Check if any dependency has vulnerabilities
+                project = {}
+                project["description"] = project_data["description"]
+                dependencies = project_data.get("dependencies", {})
+                has_vulnerabilities = any(
+                    "vulnerabilities found" in status.lower() for status in dependencies.values()
+                )
+
+                if has_vulnerabilities:
+                    project["vulnerable_dependencies"] = True
+                    vulnr_cntr += 1
+                else:
+                    project["vulnerable_dependencies"] = False
+
+                filtered_projects[project_name] = project
+
+            msg = f"Project count: {projects_cnt}. {vulnr_cntr} project(s) with vulnerabilities found."
+
+            response = handle_response(CONST.SUCCESS_STATUS, msg, data=filtered_projects)
+
+        return response
 
 if __name__ == "__main__":
     # Lets run locally for service validation
