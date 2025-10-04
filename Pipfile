@@ -9,6 +9,9 @@ uvicorn = "*"
 requests = "*"
 pytest = "*"
 pydantic = "*"
+slowapi = "*"
+fastapi-limiter = "*"
+
 
 [dev-packages]
 

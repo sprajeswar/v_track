@@ -6,6 +6,9 @@ import os
 class Config:
     """Class to hold application configurations."""
 
+    # This is only for demo purpose and to demonsrate the functionality!
+    SECRET_KEY_TOKEN: str = os.getenv("KEY_TOKEN", "v_trckr_demo")
+
     LOG_DIR: str = "opt/logs"  # Define the log directory path
     # Ensure the log directory exists
     os.makedirs(LOG_DIR, exist_ok=True)
@@ -30,3 +33,7 @@ class Config:
     #LRU Cache size for API responses
     LRU_CACHE_SIZE: int = 16
     LRU_CACHE_TYPED: bool = False
+
+    #RateLimit for API calls
+    NUM_TIMES: int = 2
+    TYPE_LIMIT: str = "minute"

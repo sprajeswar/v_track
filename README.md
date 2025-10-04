@@ -28,6 +28,15 @@ For pip based - Linux/Mac
     pip install -r requirements.txt
 ```
 
+## Authentication
+Check for default token from config file for basic authorization.
+Or else export your own token like below
+```export KEY_TOKEN=<your token>
+```
+Ex: export KEY_TOKEN=admin
+
+- Use the same token value on Swagger to authenticate!
+
 ## Usage
 To run the application, execute the following command:
 (Default LOG_LEVEL is set to INFO under config.py
@@ -57,6 +66,15 @@ Swagger docs:
 ```http://127.0.0.1:8000/docs```
 And its done. You are free to experiment.
 
+### Application logs
+Application level logs are available under <PYTHONPATH>/opt/logs directory
+Application log file: app.log
+Ser the below vars from config for different values
+
+```LOG_DIR
+LOG_FILE_PATH
+```
+
 ## Notes:
 - An individual query within the queryset can return more than 1,000 vulnerabilities
 - The entire queryset can return more than 3,000 vulnerabilities total
@@ -69,8 +87,8 @@ And its done. You are free to experiment.
 This is for MVP and is to demonstrate consuming third party API
 - Read vulnerabilities for a given package
 - Read vulnerabilities for bunch of packages uploaded through a file (consider pagination)
-- List all the packages created
-- List all the packages with vulnerabilities
+- List all the proejcts created
+- List all the projects with vulnerabilities
 - In-memory cache (lru_cache) with configurable cache size
 
 ### Limitations

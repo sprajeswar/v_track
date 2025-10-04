@@ -1,18 +1,21 @@
 """Endpoints for Vulnerabilities."""
 
 from fastapi import APIRouter, UploadFile, HTTPException
+from fastapi import Request, Depends
 
+from app.rate_limiter import limiter
 from app.services.vulners_service import VulnersService
 from app.logger import setup_logger
 from app.constants import Constants as CONST
 from app.config import Config
 from app.utils.response_utils import handle_response
+from app.token_auth import get_api_key
 
 import datetime as datetime
 
 logger = setup_logger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies = [Depends(get_api_key)])
 
 # Create a shared instance of VulnersService
 # This is to ensure that the in-memory 'projects' dictionary
